@@ -1,11 +1,12 @@
 #!/bin/bash
 # https://github.com/openwrt/openwrt/blob/main/include/download.mk
 
+export MAKEFILE="${MAKEFILE:-Makefile}" && cd "$(dirname "$MAKEFILE")"
 export TOPDIR="$1"
 export STAGING_DIR_HOST="${TOPDIR}/staging_dir/host"
 
 export PATH="${STAGING_DIR_HOST}/bin:${PATH}"
-MKFILE="$(sed -n '1,/^include \$(INCLUDE_DIR)\/package.mk/{s|:=|=|g;s|(|{|g;s|)|}|g;p}' Makefile)"
+MKFILE="$(sed -n '1,/^include \$(INCLUDE_DIR)\/package.mk/{s|:=|=|g;s|(|{|g;s|)|}|g;p}' "$MAKEFILE")"
 
 set_value() {
 	local val="$(echo "$MKFILE" | $([ -n "$3" ] && echo sed '1!G;h;$!d' || echo cat) | sed -n "${2}p" | sed -n 's|^'"$1"'=\(.*\)|\1|p')"

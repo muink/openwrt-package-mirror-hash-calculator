@@ -1,0 +1,56 @@
+name: "OpenWrt package PKG_MIRROR_HASH calculator"
+description: "Use to calculating PKG_MIRROR_HASH for openwrt packages"
+author: muink
+runs:
+  using: 'composite'
+  steps:
+    - name: Download openwrt-sdk-${{ env.TARGET_VERSION }}
+      if: env.TARGET_VERSION
+      shell: bash
+      run: |
+        group() {
+          endgroup
+          echo "::group::  $1"
+          GROUP=1
+        }
+        endgroup() {
+          if [ -n "$GROUP" ]; then
+            echo "::endgroup::"
+          fi
+          GROUP=
+        }
+        trap 'endgroup' ERR
+        #
+        group "Initialize Environment"
+        sudo apt update
+        sudo apt -y install axel curl
+        endgroup
+        #
+        group "Download openwrt-sdk-$TARGET_VERSION"
+        mirror_url='https://downloads.openwrt.org'
+        op_target_url_prefix="$mirror_url/$([ "$TARGET_VERSION" = "snapshots" ] && echo snapshots || echo "releases/$TARGET_VERSION")/targets/x86/64"
+        sha256sums="$(curl -L "${op_target_url_prefix}/sha256sums")"
+        sdk="$(sed -n '/\bsdk\b/{s|^[[:xdigit:]]*\s*\*||;p}' <<< "$sha256sums")"
+        axel -q -n8 "${op_target_url_prefix}/${sdk}"
+        tar $(echo "$sdk" | grep -qE '\.tar\.zst$' && echo '-I zstd') -xf "$sdk" && rm -f "$sdk"
+        mv *-sdk-* TOPDIR
+        endgroup
+
+    - run: echo "${{ github.action_path }}" >> $GITHUB_PATH
+      shell: bash
+    - name: Calculate PKG_MIRROR_HASH
+      shell: bash
+      run: |
+        pkg_mirror_hash=$(get_PKG_MIRROR_HASH.sh TOPDIR <<< P | grep '^MIRROR_HASH: ' | awk '{print $2}')
+        echo "PKG_MIRROR_HASH=$pkg_mirror_hash"
+        sed -i "s|^\(PKG_MIRROR_HASH\b.*\)=.*|\1=$pkg_mirror_hash|" "$MAKEFILE"
+
+    - name: Commit and push
+      shell: bash
+      run: |
+        git config --local user.name "GitHub Action"
+        git config --local user.email "actions-user@users.noreply.github.com"
+        git add "$MAKEFILE"
+        git diff-index --cached --quiet HEAD "$MAKEFILE" \
+        || (git commit -m "Update packages" && git push \
+        "https://x-access-token:$COMMIT_TOKEN@github.com/$GITHUB_REPOSITORY" HEAD:$GITHUB_REF_NAME)
