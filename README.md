@@ -30,7 +30,7 @@ jobs:
       contents: write  # To push a branch
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 0
