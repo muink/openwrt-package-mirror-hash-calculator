@@ -32,7 +32,7 @@ runs:
         sha256sums="$(curl -L "${op_target_url_prefix}/sha256sums")"
         sdk="$(sed -n '/\bsdk\b/{s|^[[:xdigit:]]*\s*\*||;p}' <<< "$sha256sums")"
         axel -q -n8 "${op_target_url_prefix}/${sdk}"
-        tar $(echo "$sdk" | grep -qE '\.tar\.zst$' && echo '-I zstd') -xf "$sdk" && rm -f "$sdk"
+        tar -xf "$sdk" && rm -f "$sdk"
         mv *-sdk-* TOPDIR
         echo "TOPDIR=$(realpath TOPDIR)" >> $GITHUB_ENV
         endgroup
