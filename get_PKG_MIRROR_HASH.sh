@@ -1,7 +1,7 @@
 #!/bin/bash
 # https://github.com/openwrt/openwrt/blob/main/include/download.mk
 
-export MAKEFILE="${MAKEFILE:-Makefile}" && cd "$(dirname "$MAKEFILE")"
+export MAKEFILE="${MAKEFILE:-Makefile}"
 export TOPDIR="$1"
 export STAGING_DIR_HOST="${TOPDIR}/staging_dir/host"
 
@@ -61,18 +61,19 @@ DownloadRawgit() {
 		FILE="$PKG_SOURCE" \
 		SUBDIR="$PKG_SOURCE_SUBDIR"
 
-    local OPTS="--no-checkout"
+	local OPTS="--no-checkout"
 
 	echo "Checking out files from the git repository..."
 	umask 022
 	rm -rf ${SUBDIR}
 	git clone ${OPTS} ${URL} ${SUBDIR}
 	(cd ${SUBDIR} && umask 022 && git checkout ${SOURCE_VERSION})
-	export TAR_TIMESTAMP=`cd ${SUBDIR} && git log -1 --format='@%ct'`
+	export TAR_TIMESTAMP=`cd ${SUBDIR} && git log -1 --no-show-signature --format='@%ct'`
 
 	echo "Generating formal git archive (apply .gitattributes rules)"
 	(cd ${SUBDIR} && git config core.abbrev 8 && git archive --format=tar HEAD --output=../${SUBDIR}.tar.git)
-	grep -q '\bskip\b' <<< "${SUBMODULES}" || tar --ignore-failed-read -C ${SUBDIR} -f ${SUBDIR}.tar.git -r .git .gitmodules 2>/dev/null
+	grep -q '\bskip\b' <<< "${SUBMODULES}" \
+		|| tar --numeric-owner --owner=0 --group=0 --ignore-failed-read -C ${SUBDIR} -f ${SUBDIR}.tar.git -r .git .gitmodules 2>/dev/null
 
 	rm -rf ${SUBDIR} && mkdir ${SUBDIR}
 	tar -C ${SUBDIR} -xf ${SUBDIR}.tar.git
